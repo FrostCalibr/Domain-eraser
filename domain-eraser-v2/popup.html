@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Domain Eraser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+button,input{font-family:inherit;border:none;background:none;outline:none;cursor:pointer}
+input{cursor:text}
+
+:root{
+  --ink:    #141414;
+  --ink2:   #444;
+  --ink3:   #888;
+  --ink4:   #bbb;
+  --rule:   #E0DED8;
+  --rule2:  #EDEBE6;
+  --paper:  #F5F4F0;
+  --white:  #FFFFFF;
+  --red:    #E01010;
+  --red2:   #FF3030;
+  --blue:   #1400FF;
+  --green:  #007A35;
+  --mono:   'Fragment Mono', 'Courier New', monospace;
+  --sans:   'Sora', system-ui, sans-serif;
+}
+
+html, body{
+  width:340px;
+  height:540px;
+  overflow:hidden;
+}
+body{
+  font-family:var(--sans);
+  background:var(--paper);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+
+/* ─── App shell ─── */
+.app{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* ─── Screens ─── */
+.screen{
+  display:none;
+  flex:1;
+  flex-direction:column;
+  overflow:hidden;
+}
+.screen.active{display:flex}
+
+/* ─── Topbar ─── */
+.topbar{
+  height:48px;
+  display:flex;
+  align-items:center;
+  padding:0 16px;
+  border-bottom:1.5px solid var(--ink);
+  flex-shrink:0;
+  gap:10px;
+}
+.topbar-logo{
+  width:22px;height:22px;flex-shrink:0;
+  border:1.5px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.topbar-logo::before,.topbar-logo::after{
+  content:'';position:absolute;
+  width:60%;height:1.5px;background:var(--ink);
+  transform-origin:center;
+}
+.topbar-logo::before{transform:rotate(45deg)}
+.topbar-logo::after{transform:rotate(-45deg)}
+.topbar-title{
+  font-family:var(--mono);
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink);flex:1;
+}
+.topbar-meta{
+  font-family:var(--mono);
+  font-size:9px;color:var(--ink3);
+  letter-spacing:.1em;
+}
+.back-btn{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);
+  height:100%;
+  padding-right:2px;
+  transition:color .12s;
+  flex-shrink:0;
+}
+.back-btn:hover{color:var(--ink)}
+.back-btn svg{width:10px;height:10px;flex-shrink:0}
+
+/* ═══════════════════════════════════
+   ERASE SCREEN
+═══════════════════════════════════ */
+
+/* Options strip — full width, no cards */
+.opts-strip{
+  display:flex;
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+}
+.opt-toggle{
+  flex:1;
+  height:38px;
+  display:flex;align-items:center;justify-content:center;
+  gap:5px;
+  font-size:10.5px;font-weight:500;
+  color:var(--ink3);
+  border-right:1px solid var(--rule);
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+  transition:color .12s,background .12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.opt-toggle:last-child{border-right:none}
+.opt-toggle input{display:none}
+.opt-toggle:active{background:var(--rule2)}
+.opt-toggle.on{color:var(--ink);background:var(--white)}
+.opt-dot{
+  width:5px;height:5px;border-radius:50%;
+  border:1.5px solid var(--ink4);
+  transition:border-color .12s,background .12s;
+  flex-shrink:0;
+}
+.opt-toggle.on .opt-dot{border-color:var(--red);background:var(--red)}
+
+/* Domain zone — this owns the screen */
+.domain-zone{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:0 16px;
+  position:relative;
+  border-bottom:1px solid var(--rule);
+}
+.domain-zone-label{
+  font-family:var(--mono);
+  font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.fill-btn{
+  display:flex;align-items:center;gap:4px;
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:.1em;color:var(--ink3);
+  padding:3px 0;
+  transition:color .12s;
+}
+.fill-btn:hover{color:var(--blue)}
+.fill-btn svg{width:10px;height:10px}
+#domain-input{
+  font-family:var(--mono);
+  font-size:20px;
+  font-weight:400;
+  color:var(--ink);
+  width:100%;
+  background:none;
+  caret-color:var(--red);
+  letter-spacing:.02em;
+}
+#domain-input::placeholder{color:var(--rule)}
+.domain-cursor{
+  display:inline-block;
+  width:12px;height:2px;background:var(--red);
+  position:absolute;bottom:18px;left:16px;
+  animation:blink 1.1s step-end infinite;
+  opacity:0;
+}
+#domain-input:focus ~ .domain-cursor{opacity:1}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Advanced */
+.adv-row{
+  height:34px;
+  display:flex;align-items:center;
+  padding:0 16px;gap:8px;
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+}
+.adv-label{
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink3);flex:1;
+}
+.adv-toggle-row{
+  display:flex;align-items:center;gap:8px;
+}
+.nuke-tog{
+  display:flex;align-items:center;gap:6px;
+  font-size:10.5px;font-weight:500;
+  color:var(--ink4);
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+}
+.nuke-tog input{display:none}
+.nuke-dot{
+  width:5px;height:5px;border-radius:50%;
+  border:1.5px solid var(--ink4);
+  transition:border-color .12s,background .12s;
+  flex-shrink:0;
+}
+.nuke-tog.on{color:var(--red)}
+.nuke-tog.on .nuke-dot{border-color:var(--red);background:var(--red)}
+.nuke-tog.locked{opacity:.35;cursor:not-allowed}
+
+/* Status line — fixed, no expand/collapse */
+.status-zone{
+  height:72px;
+  border-bottom:1px solid var(--rule);
+  padding:8px 16px;
+  overflow:hidden;
+  flex-shrink:0;
+  position:relative;
+}
+.status-idle{
+  font-family:var(--mono);font-size:10px;
+  color:var(--ink4);letter-spacing:.06em;
+  line-height:1.8;
+}
+.log-lines{
+  font-family:var(--mono);font-size:10px;
+  line-height:1.9;
+  overflow:hidden;
+  height:100%;
+}
+.ll{color:var(--ink3);opacity:0;transform:translateY(2px);animation:li .1s ease forwards}
+.ll.ok{color:var(--green)}
+.ll.er{color:var(--red)}
+.ll.hd{color:var(--ink);font-weight:500}
+.ll.dn{color:var(--green);font-weight:600}
+@keyframes li{to{opacity:1;transform:none}}
+
+/* Erase button — full bleed, architectural */
+.erase-btn{
+  height:52px;
+  width:100%;
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--mono);
+  font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  transition:background .12s;
+  flex-shrink:0;
+  gap:10px;
+}
+.erase-btn:hover{background:#2a2a2a}
+.erase-btn:active{background:#000}
+.erase-btn:disabled{background:var(--rule);color:var(--ink4);cursor:not-allowed}
+.erase-btn.done{background:var(--green);color:#fff}
+/* Scan sweep — a thin white line that traverses left to right */
+.erase-btn .sweep{
+  position:absolute;top:0;bottom:0;
+  width:2px;background:rgba(255,255,255,.25);
+  left:-4px;
+  transition:none;
+}
+.erase-btn.scanning .sweep{
+  left:calc(100% + 4px);
+  transition:left .85s linear;
+}
+
+/* ═══════════════════════════════════
+   LISTS SCREEN
+═══════════════════════════════════ */
+.lists-body{
+  flex:1;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Section */
+.sect{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-bottom:1px solid var(--rule);
+  min-height:0;
+}
+.sect:last-child{border-bottom:none}
+.sect-hdr{
+  height:38px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+}
+.sect-title{
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink3);
+  display:flex;align-items:center;gap:8px;
+}
+.eye-tog{
+  font-size:12px;cursor:pointer;
+  transition:opacity .15s,filter .15s;
+  user-select:none;-webkit-user-select:none;
+}
+.eye-tog.off{opacity:.2;filter:grayscale(1)}
+.add-row-btn{
+  display:flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink3);
+  height:100%;
+  transition:color .12s;
+}
+.add-row-btn:hover{color:var(--ink)}
+.add-row-btn svg{width:9px;height:9px}
+
+/* Inline add form */
+.add-form{
+  display:none;
+  flex-direction:column;
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+  background:var(--white);
+}
+.add-form.open{display:flex}
+.af-row{
+  display:flex;
+  border-bottom:1px solid var(--rule2);
+}
+.af-row:last-child{border-bottom:none}
+.af-in{
+  flex:1;height:38px;
+  padding:0 14px;
+  font-family:var(--mono);font-size:12px;
+  color:var(--ink);background:none;min-width:0;
+}
+.af-in::placeholder{color:var(--ink4)}
+.af-in:focus{background:#fafaf8}
+.af-in.nick{font-family:var(--sans);font-size:12.5px;font-weight:400}
+.af-ok{
+  width:52px;height:38px;
+  border-left:1px solid var(--rule2);
+  font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--red);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s,color .12s;
+}
+.af-ok:hover{background:var(--red);color:#fff}
+.af-ok:active{background:#c00;color:#fff}
+
+/* Quick opts inline */
+.af-opts{
+  display:flex;
+  border-bottom:1px solid var(--rule2);
+}
+.af-opt{
+  flex:1;height:30px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:500;
+  color:var(--ink4);
+  border-right:1px solid var(--rule2);
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+  transition:color .12s,background .12s;
+}
+.af-opt:last-child{border-right:none}
+.af-opt input{display:none}
+.af-opt.on{color:var(--ink);background:var(--rule2)}
+.af-opt:active{background:var(--rule)}
+
+/* List items */
+.list-scroll{flex:1;overflow-y:auto;min-height:0}
+.list-scroll::-webkit-scrollbar{width:2px}
+.list-scroll::-webkit-scrollbar-thumb{background:var(--rule)}
+.list-empty{
+  padding:14px 16px;
+  font-family:var(--mono);font-size:10px;
+  color:var(--ink4);letter-spacing:.06em;
+}
+.li{
+  display:flex;align-items:center;
+  height:44px;padding:0 16px;gap:10px;
+  border-bottom:1px solid var(--rule2);
+  transition:background .1s;
+}
+.li:last-child{border-bottom:none}
+.li:hover{background:var(--white)}
+.li-label{
+  flex:1;min-width:0;
+  font-family:var(--mono);font-size:11.5px;
+  color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.li-label.masked{color:var(--ink3);font-size:11px}
+.li-label.nick{font-family:var(--sans);font-size:13px;font-weight:500}
+.li-acts{display:flex;gap:3px;flex-shrink:0}
+.la{
+  height:26px;min-width:26px;
+  border:1px solid var(--rule);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;
+  color:var(--ink3);padding:0 6px;
+  transition:all .1s;
+}
+.la:hover{border-color:var(--ink3);color:var(--ink)}
+.la:active{background:var(--rule2)}
+.la.del:hover{border-color:var(--red);color:var(--red)}
+
+/* Per-item opts row */
+.qi-opts{
+  display:none;
+  border-bottom:1px solid var(--rule2);
+  background:var(--white);
+}
+.qi-opts.open{display:flex}
+.qi-opt{
+  flex:1;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9.5px;font-weight:500;color:var(--ink4);
+  border-right:1px solid var(--rule2);
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+  transition:color .1s,background .1s;
+}
+.qi-opt:last-child{border-right:none}
+.qi-opt input{display:none}
+.qi-opt.on{color:var(--ink);background:var(--rule2)}
+.qi-opt:active{background:var(--rule)}
+
+.watch-note{
+  padding:9px 16px;
+  font-size:10.5px;line-height:1.65;
+  color:var(--ink3);
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+}
+.watch-note b{font-family:var(--mono);font-weight:400;color:var(--ink2)}
+.auto-off-bar{
+  padding:8px 16px;
+  font-size:10.5px;font-weight:500;
+  color:#996600;background:#FFF9E6;
+  border-bottom:1px solid #EEE0A0;
+  display:none;flex-shrink:0;
+}
+
+/* ═══════════════════════════════════
+   CONFIG SCREEN
+═══════════════════════════════════ */
+.config-body{
+  flex:1;overflow-y:auto;
+}
+.config-body::-webkit-scrollbar{width:2px}
+.config-body::-webkit-scrollbar-thumb{background:var(--rule)}
+.cfg-group{border-bottom:1px solid var(--rule)}
+.cfg-group-label{
+  height:30px;
+  display:flex;align-items:center;
+  padding:0 16px;
+  font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink4);
+  border-bottom:1px solid var(--rule);
+  background:var(--rule2);
+}
+.cfg-row{
+  display:flex;align-items:center;
+  min-height:48px;
+  padding:10px 16px;
+  border-bottom:1px solid var(--rule2);
+  gap:12px;
+}
+.cfg-row:last-child{border-bottom:none}
+.cfg-info{flex:1;min-width:0}
+.cfg-label{font-size:12.5px;font-weight:500;color:var(--ink)}
+.cfg-desc{font-size:10.5px;color:var(--ink3);margin-top:2px;line-height:1.4}
+.cfg-desc.warn{color:#996600}
+
+/* Toggle switch */
+.tog{cursor:pointer;width:38px;height:22px;flex-shrink:0}
+.tog input{display:none}
+.tog-t{
+  display:block;width:38px;height:22px;
+  background:var(--rule);
+  border-radius:11px;
+  position:relative;
+  transition:background .18s;
+}
+.tog input:checked + .tog-t{background:var(--ink)}
+.tog-t::after{
+  content:'';position:absolute;
+  top:3px;left:3px;
+  width:16px;height:16px;
+  background:var(--white);
+  border-radius:50%;
+  transition:transform .18s;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.tog input:checked + .tog-t::after{transform:translateX(16px)}
+/* Unlock = red */
+.tog.unlock input:checked + .tog-t{background:var(--red)}
+
+/* ═══════════════════════════════════
+   CONFIRM SHEET
+═══════════════════════════════════ */
+.sheet-bg{
+  display:none;position:absolute;inset:0;
+  background:rgba(20,20,20,.65);
+  z-index:50;align-items:flex-end;
+}
+.sheet-bg.open{display:flex;animation:fdin .15s ease forwards}
+@keyframes fdin{from{opacity:0}to{opacity:1}}
+.sheet{
+  width:100%;
+  background:var(--paper);
+  border-top:2px solid var(--ink);
+  padding:0;
+  transform:translateY(20px);
+  opacity:0;
+  transition:transform .22s cubic-bezier(.4,0,.2,1),opacity .18s ease;
+}
+.sheet-bg.open .sheet{transform:none;opacity:1}
+.sheet-inner{padding:20px 16px 18px}
+.sheet-title{
+  font-family:var(--mono);font-size:12px;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink);margin-bottom:8px;
+}
+.sheet-msg{
+  font-size:12.5px;line-height:1.6;
+  color:var(--ink2);margin-bottom:18px;
+}
+.s-domain{
+  font-family:var(--mono);color:var(--ink);
+  border-bottom:2px solid var(--ink);
+  padding-bottom:1px;
+}
+.sheet-btns{display:flex;gap:6px;margin-bottom:13px}
+.sb{
+  flex:1;height:44px;
+  font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .1s,color .1s;
+}
+.sb.cancel{
+  border:1.5px solid var(--rule);color:var(--ink3);
+}
+.sb.cancel:hover{border-color:var(--ink3);color:var(--ink)}
+.sb.confirm{
+  background:var(--ink);color:var(--paper);flex:2;
+}
+.sb.confirm:hover{background:#000}
+.sb.confirm:active{transform:scale(.98)}
+.sheet-nowarn{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;color:var(--ink3);
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+}
+.sheet-nowarn input{accent-color:var(--ink);width:13px;height:13px}
+
+/* ═══════════════════════════════════
+   BOTTOM NAV
+═══════════════════════════════════ */
+.nav{
+  height:50px;
+  display:flex;
+  border-top:1.5px solid var(--ink);
+  flex-shrink:0;
+  background:var(--paper);
+}
+.nav-btn{
+  flex:1;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;
+  border-right:1px solid var(--rule);
+  color:var(--ink4);
+  font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.14em;text-transform:uppercase;
+  transition:color .12s,background .12s;
+  position:relative;
+}
+.nav-btn:last-child{border-right:none}
+.nav-btn:active{background:var(--rule2)}
+.nav-btn.active{color:var(--ink);background:var(--white)}
+.nav-btn.active::before{
+  content:'';
+  position:absolute;top:-1.5px;left:0;right:0;
+  height:2px;background:var(--red);
+}
+.nav-btn svg{width:14px;height:14px;transition:none}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══════ ERASE SCREEN ══════ -->
+  <div id="screen-erase" class="screen active">
+
+    <header class="topbar">
+      <div class="topbar-logo"></div>
+      <span class="topbar-title">Domain Eraser</span>
+      <span class="topbar-meta">v2.0</span>
+    </header>
+
+    <!-- Options -->
+    <div class="opts-strip" id="opts-strip">
+      <label class="opt-toggle on" data-opt="cookies">
+        <input type="checkbox" checked/>
+        <div class="opt-dot"></div>Cookies
+      </label>
+      <label class="opt-toggle on" data-opt="storage">
+        <input type="checkbox" checked/>
+        <div class="opt-dot"></div>Storage
+      </label>
+      <label class="opt-toggle on" data-opt="history">
+        <input type="checkbox" checked/>
+        <div class="opt-dot"></div>History
+      </label>
+      <label class="opt-toggle on" data-opt="subdomains">
+        <input type="checkbox" checked/>
+        <div class="opt-dot"></div>Subs
+      </label>
+    </div>
+
+    <!-- Domain — owns the center -->
+    <div class="domain-zone">
+      <div class="domain-zone-label">
+        <span>Target</span>
+        <button class="fill-btn" id="autofill-btn">
+          <svg viewBox="0 0 12 12" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="6" cy="6" r="1.8" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          Current tab
+        </button>
+      </div>
+      <input id="domain-input" type="text" placeholder="example.com"
+        autocomplete="off" spellcheck="false" autocapitalize="none"/>
+    </div>
+
+    <!-- Advanced row -->
+    <div class="adv-row">
+      <span class="adv-label">Advanced</span>
+      <div class="adv-toggle-row">
+        <label class="nuke-tog locked" id="nuke-tog">
+          <input type="checkbox"/>
+          <div class="nuke-dot"></div>
+          <span id="nuke-label">Nuke cache</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-zone" id="status-zone">
+      <div class="status-idle" id="status-idle">Ready. Enter a domain above.</div>
+      <div class="log-lines" id="log-lines" style="display:none"></div>
+    </div>
+
+    <!-- Erase -->
+    <button class="erase-btn" id="erase-btn">
+      <div class="sweep"></div>
+      <span id="erase-label">Erase</span>
+    </button>
+
+  </div><!-- /erase screen -->
+
+
+  <!-- ══════ LISTS SCREEN ══════ -->
+  <div id="screen-lists" class="screen">
+
+    <header class="topbar">
+      <button class="back-btn" data-screen="erase">
+        <svg viewBox="0 0 10 10" fill="none">
+          <path d="M7 1.5L3 5l4 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter"/>
+        </svg>
+        Back
+      </button>
+      <span class="topbar-title">Lists</span>
+    </header>
+
+    <div class="lists-body">
+
+      <!-- Quick Erase -->
+      <div class="sect">
+        <div class="sect-hdr">
+          <span class="sect-title">⚡ Quick Erase</span>
+          <button class="add-row-btn" id="quick-add-open">
+            <svg viewBox="0 0 10 10" fill="none">
+              <line x1="5" y1="1" x2="5" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+              <line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+            </svg>
+            Add
+          </button>
+        </div>
+
+        <div class="add-form" id="quick-form">
+          <div class="af-row">
+            <input class="af-in" id="qf-domain" type="text" placeholder="example.com" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+            <button class="af-ok" id="qf-submit">Add</button>
+          </div>
+          <div class="af-row">
+            <input class="af-in nick" id="qf-nick" placeholder="Nickname (optional)" autocomplete="off" maxlength="32"/>
+          </div>
+          <div class="af-opts" id="qf-opts">
+            <label class="af-opt on" data-opt="cookies"><input type="checkbox" checked/>Cookies</label>
+            <label class="af-opt on" data-opt="storage"><input type="checkbox" checked/>Storage</label>
+            <label class="af-opt on" data-opt="history"><input type="checkbox" checked/>History</label>
+            <label class="af-opt on" data-opt="subs"><input type="checkbox" checked/>Subs</label>
+          </div>
+        </div>
+
+        <div class="list-scroll" id="quick-items"></div>
+      </div>
+
+      <!-- Auto-Erase -->
+      <div class="sect">
+        <div class="sect-hdr">
+          <span class="sect-title">
+            <span class="eye-tog" id="eye-tog" title="Toggle auto-erase">👁</span>
+            Auto-Erase
+          </span>
+          <button class="add-row-btn" id="watch-add-open">
+            <svg viewBox="0 0 10 10" fill="none">
+              <line x1="5" y1="1" x2="5" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+              <line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+            </svg>
+            Add
+          </button>
+        </div>
+
+        <div class="auto-off-bar" id="auto-off-bar">Auto-erase is paused. Tap 👁 to resume.</div>
+        <div class="watch-note">Domains stored as <b>SHA-256 hashes</b>. Erases on tab close and browser startup.</div>
+
+        <div class="add-form" id="watch-form">
+          <div class="af-row">
+            <input class="af-in" id="wf-domain" type="text" placeholder="example.com" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+            <button class="af-ok" id="wf-submit">Add</button>
+          </div>
+          <div class="af-row">
+            <input class="af-in nick" id="wf-nick" placeholder="Nickname (optional)" autocomplete="off" maxlength="32"/>
+          </div>
+        </div>
+
+        <div class="list-scroll" id="watch-items"></div>
+      </div>
+
+    </div>
+  </div><!-- /lists screen -->
+
+
+  <!-- ══════ CONFIG SCREEN ══════ -->
+  <div id="screen-config" class="screen">
+
+    <header class="topbar">
+      <button class="back-btn" data-screen="erase">
+        <svg viewBox="0 0 10 10" fill="none">
+          <path d="M7 1.5L3 5l4 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter"/>
+        </svg>
+        Back
+      </button>
+      <span class="topbar-title">Config</span>
+    </header>
+
+    <div class="config-body">
+      <div class="cfg-group">
+        <div class="cfg-group-label">Security</div>
+        <div class="cfg-row">
+          <div class="cfg-info">
+            <div class="cfg-label">Confirm Before Erase</div>
+            <div class="cfg-desc">Show warning sheet before every erase.</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="s-confirm" checked/><div class="tog-t"></div></label>
+        </div>
+        <div class="cfg-row">
+          <div class="cfg-info">
+            <div class="cfg-label">Protect Global Cache</div>
+            <div class="cfg-desc">Prevent full HTTP cache wipe.</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="s-cache-guard" checked/><div class="tog-t"></div></label>
+        </div>
+        <div class="cfg-row">
+          <div class="cfg-info">
+            <div class="cfg-label">Cookie Sandboxing</div>
+            <div class="cfg-desc">Only clear cookies for the exact matched domain.</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="s-sandbox" checked/><div class="tog-t"></div></label>
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <div class="cfg-group-label">Auto-Erase</div>
+        <div class="cfg-row">
+          <div class="cfg-info">
+            <div class="cfg-label">Auto-Erase on Tab Close</div>
+            <div class="cfg-desc">Wipe watchlist domains when their tab closes.</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="s-auto" checked/><div class="tog-t"></div></label>
+        </div>
+        <div class="cfg-row">
+          <div class="cfg-info">
+            <div class="cfg-label">Startup Protection</div>
+            <div class="cfg-desc">Re-check and wipe watchlist on every browser start.</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="s-tamper" checked/><div class="tog-t"></div></label>
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <div class="cfg-group-label">Danger Zone</div>
+        <div class="cfg-row">
+          <div class="cfg-info">
+            <div class="cfg-label">Allow Cache Nuke</div>
+            <div class="cfg-desc warn">⚠ Enables wiping the entire browser HTTP cache, not just the target domain.</div>
+          </div>
+          <label class="tog unlock"><input type="checkbox" id="s-allow-nuke"/><div class="tog-t"></div></label>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /config screen -->
+
+</div><!-- /app -->
+
+
+<!-- ══ CONFIRM SHEET ══ -->
+<div class="sheet-bg" id="sheet-bg">
+  <div class="sheet">
+    <div class="sheet-inner">
+      <div class="sheet-title">Confirm Erase</div>
+      <div class="sheet-msg">
+        All stored data for <span class="s-domain" id="sheet-target">—</span> will be permanently deleted.
+      </div>
+      <div class="sheet-btns">
+        <button class="sb cancel" id="sheet-cancel">Cancel</button>
+        <button class="sb confirm" id="sheet-ok">Erase</button>
+      </div>
+      <label class="sheet-nowarn">
+        <input type="checkbox" id="no-warn"/>
+        Don't ask again
+      </label>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav class="nav">
+  <button class="nav-btn active" data-screen="erase">
+    <svg viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.4"/>
+      <line x1="5" y1="5" x2="11" y2="11" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+      <line x1="11" y1="5" x2="5" y2="11" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+    </svg>
+    Erase
+  </button>
+  <button class="nav-btn" data-screen="lists">
+    <svg viewBox="0 0 16 16" fill="none">
+      <line x1="3" y1="4" x2="13" y2="4" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+      <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+      <line x1="3" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+    </svg>
+    Lists
+  </button>
+  <button class="nav-btn" data-screen="config">
+    <svg viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+    </svg>
+    Config
+  </button>
+</nav>
+
+<script src="popup.js"></script>
+</body>
+</html>
